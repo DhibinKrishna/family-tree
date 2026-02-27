@@ -106,6 +106,7 @@
             <div class="form-group">
                 <label for="rel-type">Relationship</label>
                 <select id="rel-type" required>
+                    <option value="" disabled selected>Select Type</option>
                     <option value="parent-child">Parent -> Child</option>
                     <option value="spouse">Spouse</option>
                 </select>
@@ -129,7 +130,7 @@
             <p style="margin-bottom: 20px; color: #7f8c8d;">What relationship would you like to add for <strong id="choice-person-name"></strong>?</p>
             <div class="form-actions" style="justify-content: center; gap: 15px;">
                 <button type="button" class="btn primary" id="btn-choice-child">Add Child</button>
-                <button type="button" class="btn secondary" id="btn-choice-spouse">Add Spouse</button>
+                <button type="button" class="btn primary" id="btn-choice-spouse">Add Spouse</button>
             </div>
             <div class="form-actions" style="justify-content: center; margin-top: 15px;">
                 <button type="submit" class="btn outline">Cancel</button>

@@ -172,7 +172,7 @@ export const UI = {
         modal.showModal();
     },
 
-    openPersonModal(existingPerson = null) {
+    openPersonModal(existingPerson = null, customTitle = null, prefillData = {}) {
         const modal = document.getElementById('person-modal');
         const form = document.getElementById('person-form');
         const deleteBtn = document.getElementById('delete-person-btn');
@@ -192,9 +192,12 @@ export const UI = {
              document.getElementById('person-location').value = existingPerson.location || '';
              document.getElementById('person-comments').value = existingPerson.comments || '';
         } else {
-             title.textContent = "Add Person";
+             title.textContent = customTitle || "Add Person";
              deleteBtn.style.display = 'none';
              document.getElementById('person-id').value = '';
+             if (prefillData.gender) {
+                 document.getElementById('person-gender').value = prefillData.gender;
+             }
         }
 
         modal.showModal();
@@ -218,7 +221,7 @@ export const UI = {
              document.getElementById('rel-id').value = existingRelation.id || '';
              sourceSelect.value = existingRelation.sourceId;
              targetSelect.value = existingRelation.targetId;
-             document.getElementById('rel-type').value = existingRelation.type || 'parent-child';
+             document.getElementById('rel-type').value = existingRelation.type || '';
 
              // Prevent changing the bound persons on an pre-filled link
              sourceSelect.disabled = true;

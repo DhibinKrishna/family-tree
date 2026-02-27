@@ -82,10 +82,13 @@ export const Renderer = {
         let startNodeX, startNodeY;
         let startPositions = {};
         let hasMoved = false;
+        let longPressTimer = null;
+        let longPressFired = false;
 
         nodeElement.addEventListener('pointerdown', (e) => {
             e.stopPropagation(); // Prevent canvas pan
             hasMoved = false;
+            longPressFired = false;
             nodeElement.setPointerCapture(e.pointerId);
             
             startClientX = e.clientX;
@@ -107,6 +110,21 @@ export const Renderer = {
             } else {
                 isDragging = true;
                 isDrawingLink = false;
+                
+                // Long-press detection for mobile "Add Relative"
+                if (!document.body.classList.contains('frozen')) {
+                    longPressTimer = setTimeout(() => {
+                        longPressFired = true;
+                        isDragging = false;
+                        // Revert z-index
+                        this.selectedNodes.forEach(id => {
+                            const cache = this.personNodeCache[id];
+                            if (cache) cache.node.style.zIndex = '';
+                        });
+                        nodeElement.releasePointerCapture(e.pointerId);
+                        if (this.onAddRelativeFromPerson) this.onAddRelativeFromPerson(personData);
+                    }, 500);
+                }
                 
                 // Multi-select management
                 if (e.shiftKey || e.metaKey) {
@@ -142,7 +160,10 @@ export const Renderer = {
             const dx = (e.clientX - startClientX) / this.canvasController.scale;
             const dy = (e.clientY - startClientY) / this.canvasController.scale;
             
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                hasMoved = true;
+                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+            }
             
             if (isDragging) {
                 // Apply delta to ALL selected nodes
@@ -159,13 +180,17 @@ export const Renderer = {
                 // Arbitrarily pass the reference node ID to trigger relation redrawing
                 if (this.onNodeDrag) this.onNodeDrag(personData.id);
             } else if (isDrawingLink) {
-                const endX = startNodeX + dx;
-                const endY = startNodeY + dy;
+                // Convert current pointer position to canvas coordinates
+                const canvasRect = this.canvasController.container.getBoundingClientRect();
+                const endX = (e.clientX - canvasRect.left - this.canvasController.translateX) / this.canvasController.scale;
+                const endY = (e.clientY - canvasRect.top - this.canvasController.translateY) / this.canvasController.scale;
                 tempLinkPath.setAttribute('d', `M ${startNodeX} ${startNodeY} L ${endX} ${endY}`);
             }
         });
 
         const endDrag = (e) => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+            if (longPressFired) { longPressFired = false; return; }
             if (!isDragging && !isDrawingLink) return;
             
             // Revert z-index for all selected
@@ -260,8 +285,9 @@ export const Renderer = {
             
             if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMovedMarker = true;
             
-            const endX = startNodeX + dx;
-            const endY = startNodeY + dy;
+            const endCanvasRect = this.canvasController.container.getBoundingClientRect();
+            const endX = (e.clientX - endCanvasRect.left - this.canvasController.translateX) / this.canvasController.scale;
+            const endY = (e.clientY - endCanvasRect.top - this.canvasController.translateY) / this.canvasController.scale;
             tempLinkPath.setAttribute('d', `M ${startNodeX} ${startNodeY} L ${endX} ${endY}`);
         });
         
@@ -365,6 +391,31 @@ export const Renderer = {
             
             hitbox.addEventListener('click', () => { if(this.onRelationClick) this.onRelationClick(rel); });
             
+            // Long-press on spouse line to trigger "Add Child"
+            let spouseLineTimer = null;
+            let spouseLineMoved = false;
+            hitbox.addEventListener('pointerdown', (e) => {
+                spouseLineMoved = false;
+                if (!document.body.classList.contains('frozen')) {
+                    spouseLineTimer = setTimeout(() => {
+                        spouseLineTimer = null;
+                        if (this.onAddChildFromSpouse) this.onAddChildFromSpouse(rel);
+                    }, 500);
+                }
+            });
+            hitbox.addEventListener('pointermove', () => {
+                if (!spouseLineMoved) {
+                    spouseLineMoved = true;
+                    if (spouseLineTimer) { clearTimeout(spouseLineTimer); spouseLineTimer = null; }
+                }
+            });
+            hitbox.addEventListener('pointerup', () => {
+                if (spouseLineTimer) { clearTimeout(spouseLineTimer); spouseLineTimer = null; }
+            });
+            hitbox.addEventListener('pointercancel', () => {
+                if (spouseLineTimer) { clearTimeout(spouseLineTimer); spouseLineTimer = null; }
+            });
+
             hitbox.addEventListener('pointerenter', () => {
                 path.style.strokeWidth = "5px";
                 handle.classList.add('active');
@@ -423,8 +474,10 @@ export const Renderer = {
                         path.setAttribute('d', d);
                         hitbox.setAttribute('d', d);
                         
-                        // We will allow deleting the relationship bundle by clicking the unified line
-                        hitbox.addEventListener('click', () => { if(this.onRelationClick) this.onRelationClick(parentRels[0]); });
+                        // Clicking the unified line should affect BOTH parent-child relations
+                        hitbox.addEventListener('click', () => { 
+                            if(this.onRelationClick) this.onRelationClick(parentRels[0], parentRels[1]); 
+                        });
                         
                         this.connectionsLayer.appendChild(path);
                         this.connectionsLayer.appendChild(hitbox);

@@ -15,6 +15,12 @@ let persons = [];
 let relations = [];
 let personsMap = {};
 
+function getParentCount(childId) {
+    return relations.filter(r => r.type === 'parent-child' && 
+        (String(r.targetId) === String(childId))
+    ).length;
+}
+
 async function bootstrap() {
     try {
         await initDB();
@@ -34,7 +40,9 @@ async function bootstrap() {
         Renderer.onNodeClick = (person) => {
              UI.openPersonModal(person);
         };
-        Renderer.onRelationClick = async (relation) => {
+        let pairedRelation = null; // For unified spouse-child lines
+        Renderer.onRelationClick = async (relation, secondRelation = null) => {
+             pairedRelation = secondRelation;
              UI.populateRelationDropdowns(persons);
              UI.openRelationModal(relation);
         };
@@ -49,7 +57,7 @@ async function bootstrap() {
         };
         
         UI.onSavePerson = async (personData) => {
-             const center = canvasCtrl.screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+             const center = canvasCtrl.getViewportCenter();
              
              if (personData.id) {
                  // Keep existing coords
@@ -75,6 +83,11 @@ async function bootstrap() {
 
         UI.onDeleteRelation = async (id) => {
              await deleteRelation(id);
+             // Also delete paired relation from unified spouse-child line
+             if (pairedRelation) {
+                 await deleteRelation(pairedRelation.id);
+                 pairedRelation = null;
+             }
              await loadData();
              renderCanvas();
         };
@@ -97,6 +110,11 @@ async function bootstrap() {
                  await deleteRelation(id);
                  await addRelation(sourceId, targetId, type);
              } else {
+                 // Enforce max 2 parents per child
+                 if (type === 'parent-child' && getParentCount(targetId) >= 2) {
+                     alert("This person already has 2 parents.");
+                     return;
+                 }
                  await addRelation(sourceId, targetId, type);
              }
              
@@ -147,25 +165,49 @@ async function bootstrap() {
         // Hook drag-to-connect drawing to relationship modal
         Renderer.onLinkNodes = (sourcePerson, targetId) => {
              UI.populateRelationDropdowns(persons);
-             // Pass partial relation object to populate form dropdowns
+             
+             // Smart relationship detection based on drag direction
+             const target = personsMap[targetId];
+             let suggestedType = '';
+             if (target) {
+                 const dx = target.x - sourcePerson.x;
+                 const dy = target.y - sourcePerson.y;
+                 if (Math.abs(dx) > Math.abs(dy)) {
+                     // Horizontal drag → spouse
+                     suggestedType = 'spouse';
+                 } else if (dy > 0) {
+                     // Downward drag → parent-child
+                     suggestedType = 'parent-child';
+                 }
+                 // Upward or ambiguous → leave blank, force manual pick
+             }
+             
              UI.openRelationModal({
                  sourceId: String(sourcePerson.id),
-                 targetId: String(targetId)
+                 targetId: String(targetId),
+                 type: suggestedType
              });
         };
 
         // Hook drag-to-connect from spouse relation handle
         Renderer.onLinkSpouseToChild = async (parent1Id, parent2Id, childId) => {
+            // Count how many NEW parent links would be added
             const exists1 = relations.find(r => 
                  (r.sourceId === parent1Id && r.targetId === childId) ||
                  (r.sourceId === childId && r.targetId === parent1Id)
             );
-            if (!exists1) await addRelation(parent1Id, childId, 'parent-child');
-            
             const exists2 = relations.find(r => 
                  (r.sourceId === parent2Id && r.targetId === childId) ||
                  (r.sourceId === childId && r.targetId === parent2Id)
             );
+            const newLinksNeeded = (!exists1 ? 1 : 0) + (!exists2 ? 1 : 0);
+            
+            if (getParentCount(childId) + newLinksNeeded > 2) {
+                alert("This person already has 2 parents. A person cannot have more than 2 parents.");
+                return;
+            }
+            
+            if (!exists1) await addRelation(parent1Id, childId, 'parent-child');
             if (!exists2) await addRelation(parent2Id, childId, 'parent-child');
             
             await loadData();
@@ -175,7 +217,43 @@ async function bootstrap() {
         function startAddingRelative(sourcePerson, sourceRel, type) {
             const originalOnSave = UI.onSavePerson;
             
+            // Derive a contextual title for the modal
+            let modalTitle = "Add Person";
+            let prefillData = {};
+            if (sourceRel) {
+                modalTitle = "Add Child";
+            } else if (type === 'parent-child') {
+                modalTitle = "Add Child";
+            } else if (type === 'spouse') {
+                modalTitle = "Add Spouse";
+                // Best-guess gender: opposite of source person
+                if (sourcePerson && sourcePerson.gender === 'male') {
+                    prefillData.gender = 'female';
+                } else if (sourcePerson && sourcePerson.gender === 'female') {
+                    prefillData.gender = 'male';
+                }
+                // 'other' or missing → leave blank, force manual selection
+            }
+            
             UI.onSavePerson = async (newPersonData) => {
+                // Position near the source
+                if (sourcePerson) {
+                    if (type === 'spouse') {
+                        newPersonData.x = sourcePerson.x + 220;
+                        newPersonData.y = sourcePerson.y;
+                    } else {
+                        newPersonData.x = sourcePerson.x;
+                        newPersonData.y = sourcePerson.y + 200;
+                    }
+                } else if (sourceRel) {
+                    const p1 = personsMap[sourceRel.sourceId];
+                    const p2 = personsMap[sourceRel.targetId];
+                    if (p1 && p2) {
+                        newPersonData.x = (p1.x + p2.x) / 2;
+                        newPersonData.y = Math.max(p1.y, p2.y) + 200;
+                    }
+                }
+                
                 const newPerson = await addPerson(newPersonData);
                 
                 if (sourcePerson) {
@@ -198,19 +276,13 @@ async function bootstrap() {
             };
             modal.addEventListener('close', onClose);
             
-            UI.openPersonModal();
+            UI.openPersonModal(null, modalTitle, prefillData);
         }
 
         Renderer.onAddRelativeFromPerson = (personData) => {
-            const hasSpouse = relations.some(r => r.type === 'spouse' && (r.sourceId === String(personData.id) || r.targetId === String(personData.id)));
-            
-            if (hasSpouse) {
-                startAddingRelative(personData, null, 'parent-child');
-            } else {
-                UI.openChoiceModal(personData.name, (choiceType) => {
-                    startAddingRelative(personData, null, choiceType);
-                });
-            }
+            UI.openChoiceModal(personData.name, (choiceType) => {
+                startAddingRelative(personData, null, choiceType);
+            });
         };
 
         Renderer.onAddChildFromSpouse = (rel) => {
