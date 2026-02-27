@@ -1,0 +1,355 @@
+:root {
+    --bg-color: #f4f6f8;
+    --canvas-bg: #e5e9ec;
+    --dot-color: #cfd8dc;
+    --primary: #3498db;
+    --primary-hover: #2980b9;
+    --danger: #e74c3c;
+    --text: #2c3e50;
+    --text-light: #7f8c8d;
+    --border: #bdc3c7;
+    --card-bg: #ffffff;
+    
+    --node-width: 180px;
+    --node-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text);
+    overflow: hidden; /* Prevent body scrolling, handled by canvas */
+    background-color: var(--canvas-bg);
+}
+
+/* --- Floating Toolbar --- */
+#toolbar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card-bg);
+    padding: 10px 15px;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    display: flex;
+    gap: 10px;
+    z-index: 1000;
+}
+
+.divider {
+    width: 1px;
+    background: var(--border);
+    margin: 0 5px;
+}
+
+.btn {
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background: #f0f2f5;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn.primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn.primary:hover {
+    background: var(--primary-hover);
+}
+
+.btn.danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn.outline {
+    border: 1px solid var(--border);
+}
+
+/* --- Canvas Container --- */
+#canvas-container {
+    width: 100vw;
+    height: 100vh;
+    cursor: grab;
+    background-image: radial-gradient(var(--dot-color) 1px, transparent 1px);
+    background-size: 20px 20px; /* Dot grid background */
+    background-position: 0 0;
+}
+
+#canvas-container:active {
+    cursor: grabbing;
+}
+
+#canvas {
+    position: relative;
+    width: 0;
+    height: 0;
+    transform-origin: 0 0; /* Important for scaling */
+}
+
+#connections-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none; /* Let clicks pass through to canvas container to enable dragging */
+}
+
+path.relation-line {
+    fill: none;
+    stroke: #7f8c8d;
+    stroke-width: 3px;
+    pointer-events: none; /* Let the hitbox handle clicks */
+}
+
+path.relation-line-hitbox {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 20px; /* Thicker invisible line for easier clicking */
+    cursor: crosshair;
+    pointer-events: stroke;
+}
+
+/* --- Nodes --- */
+#nodes-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#handles-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none; /* Let container handle events where empty */
+}
+
+.relation-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background-color: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    cursor: grab;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 10;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto; /* Re-enable pointer events for the handle itself */
+}
+
+.relation-handle.active,
+.relation-handle:hover {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.relation-handle:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(0.95);
+}
+
+.person-node {
+    position: absolute;
+    width: var(--node-width);
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: var(--node-shadow);
+    border: 2px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.person-node:hover {
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+
+.person-node.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+}
+
+.link-handle {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background-color: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 5;
+}
+
+.person-node:hover .link-handle {
+    opacity: 1;
+}
+
+.link-handle:hover {
+    background-color: var(--primary-hover);
+}
+
+.link-handle:active {
+    cursor: grabbing;
+}
+
+/* Silhoutte avatar section */
+.avatar-header {
+    height: 80px;
+    background-color: #ecf0f1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.8;
+}
+
+.avatar.male {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%232980b9"><path d="M14 7h-4c-1.1 0-2 .9-2 2v6h2v7h4v-7h2V9c0-1.1-.9-2-2-2zM12 6c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>');
+}
+
+.avatar.female {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238e44ad"><path d="M13.94 8.31C13.62 7.52 12.85 7 12 7s-1.62.52-1.94 1.31L7 16h3v6h4v-6h3l-3.06-7.69zM12 6c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>');
+}
+
+.avatar.other, .avatar.unknown {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%237f8c8d"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
+}
+
+.node-info {
+    padding: 10px;
+    text-align: center;
+}
+
+.node-name {
+    font-weight: bold;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.node-meta {
+    font-size: 11px;
+    color: var(--text-light);
+}
+
+/* --- Modals --- */
+.modal {
+    margin: auto;
+    border: none;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    width: 400px;
+    max-width: 90vw;
+}
+
+.modal::backdrop {
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+}
+
+.modal h2 {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-group.row .half {
+    flex: 1;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+input[type="text"], select, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+/* UI Freeze Mode */
+body.frozen .person-node,
+body.frozen .relation-line-hitbox,
+body.frozen .relation-handle,
+body.frozen .link-handle {
+    pointer-events: none !important;
+}
+
+body.frozen .relation-handle,
+body.frozen .link-handle {
+    opacity: 0 !important;
+}

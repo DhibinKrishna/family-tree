@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Tree Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Floating Toolbar -->
+    <div id="toolbar">
+        <button id="add-person-btn" class="btn primary">Add Person</button>
+        <div class="divider"></div>
+        <button id="export-btn" class="btn">Export JSON</button>
+        <button id="import-btn" class="btn">Import JSON</button>
+        <div class="divider"></div>
+        <button id="freeze-btn" class="btn outline">Freeze</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;">
+        <button id="reset-view-btn" class="btn" title="Reset View" style="padding: 6px 10px; display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Main Infinite Canvas -->
+    <div id="canvas-container">
+        <div id="canvas">
+            <!-- SVG layer for connecting lines -->
+            <svg id="connections-layer" style="overflow: visible; width: 1px; height: 1px;">
+                <!-- Paths will go here -->
+            </svg>
+            <!-- HTML layer for Person nodes -->
+            <div id="nodes-layer">
+                <!-- Nodes will go here -->
+            </div>
+            <!-- HTML layer for relationship drag handles -->
+            <div id="handles-layer"></div>
+        </div>
+    </div>
+
+    <!-- Modal for Person -->
+    <dialog id="person-modal" class="modal">
+        <form method="dialog" id="person-form">
+            <h2 id="person-modal-title">Add Person</h2>
+            <input type="hidden" id="person-id">
+            
+            <div class="form-group">
+                <label for="person-name">Name *</label>
+                <input type="text" id="person-name" required>
+            </div>
+            
+            <div class="form-group row">
+                <div class="half">
+                    <label for="person-dob">DOB (Year or Date)</label>
+                    <input type="text" id="person-dob" placeholder="e.g. 1990 or 15-08-1990">
+                </div>
+                <div class="half">
+                    <label for="person-gender">Gender</label>
+                    <select id="person-gender" required>
+                        <option value="" disabled selected>Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="person-occupation">Occupation</label>
+                <input type="text" id="person-occupation">
+            </div>
+
+            <div class="form-group">
+                <label for="person-location">Location</label>
+                <input type="text" id="person-location">
+            </div>
+
+            <div class="form-group">
+                <label for="person-comments">Comments</label>
+                <textarea id="person-comments" rows="3"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn outline cancel-modal">Cancel</button>
+                <button type="button" class="btn danger" id="delete-person-btn" style="display: none;">Delete</button>
+                <button type="submit" class="btn primary">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Modal for Relationship -->
+    <dialog id="relation-modal" class="modal">
+        <form method="dialog" id="relation-form">
+            <h2 id="relation-modal-title">Add Relationship</h2>
+            <input type="hidden" id="rel-id">
+            <div class="form-group">
+                <label for="rel-source">Person 1</label>
+                <select id="rel-source" required></select>
+            </div>
+            <div class="form-group">
+                <label for="rel-type">Relationship</label>
+                <select id="rel-type" required>
+                    <option value="parent-child">Parent -> Child</option>
+                    <option value="spouse">Spouse</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="rel-target">Person 2</label>
+                <select id="rel-target" required></select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn outline cancel-modal">Cancel</button>
+                <button type="button" class="btn danger" id="delete-relation-btn" style="display: none;">Delete</button>
+                <button type="submit" class="btn primary">Save Relation</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Modal for Relationship Choice -->
+    <dialog id="choice-modal" class="modal">
+        <form method="dialog" id="choice-form">
+            <h2 style="margin-bottom: 5px;">Add Relative</h2>
+            <p style="margin-bottom: 20px; color: #7f8c8d;">What relationship would you like to add for <strong id="choice-person-name"></strong>?</p>
+            <div class="form-actions" style="justify-content: center; gap: 15px;">
+                <button type="button" class="btn primary" id="btn-choice-child">Add Child</button>
+                <button type="button" class="btn secondary" id="btn-choice-spouse">Add Spouse</button>
+            </div>
+            <div class="form-actions" style="justify-content: center; margin-top: 15px;">
+                <button type="submit" class="btn outline">Cancel</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
