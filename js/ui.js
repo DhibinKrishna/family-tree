@@ -51,6 +51,12 @@ export const UI = {
              if(this.onExport) this.onExport();
         });
 
+        document.getElementById('clear-btn').addEventListener('click', () => {
+             if (confirm("Are you sure you want to clear ALL family tree data? This action cannot be undone.")) {
+                 if(this.onClearData) this.onClearData();
+             }
+        });
+
         document.getElementById('import-btn').addEventListener('click', () => {
             document.getElementById('import-file').click();
         });

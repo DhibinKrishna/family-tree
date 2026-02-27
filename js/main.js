@@ -8,7 +8,7 @@ import {
     initDB, getSetting, setSetting,
     addPerson, updatePerson, deletePerson, getAllPersons, 
     addRelation, deleteRelation, getAllRelations, 
-    exportData, importData 
+    exportData, importData, clearData 
 } from './db.js';
 
 let persons = [];
@@ -127,6 +127,18 @@ async function bootstrap() {
                  alert("Imported successfully. The canvas has been frozen to prevent accidental edits.");
              } catch(e) {
                  alert("Error importing JSON: " + e.message);
+             }
+        };
+
+        UI.onClearData = async () => {
+             try {
+                 await clearData();
+                 await loadData();
+                 renderCanvas();
+                 canvasCtrl.resetView();
+                 UI.setFrozen(false);
+             } catch(e) {
+                 alert("Error clearing data: " + e.message);
              }
         };
 

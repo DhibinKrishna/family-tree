@@ -38,8 +38,27 @@ body {
     border-radius: 30px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 95%;
+    max-width: max-content;
     gap: 10px;
     z-index: 1000;
+}
+
+@media (max-width: 600px) {
+    #toolbar {
+        border-radius: 15px;
+        padding: 8px;
+        gap: 6px;
+    }
+    .btn {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    .divider {
+        display: none;
+    }
 }
 
 .divider {

@@ -201,3 +201,17 @@ export function importData(jsonData) {
         }
     });
 }
+
+export function clearData() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PERSONS, STORE_RELATIONS], 'readwrite');
+        const pStore = tx.objectStore(STORE_PERSONS);
+        const rStore = tx.objectStore(STORE_RELATIONS);
+        
+        pStore.clear();
+        rStore.clear();
+        
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error);
+    });
+}
