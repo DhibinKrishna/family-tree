@@ -133,6 +133,11 @@ export class CanvasController {
         this.container.style.backgroundSize = `${20 * this.scale}px ${20 * this.scale}px`;
     }
     
+    // Get the center of the viewport in canvas coordinates
+    getViewportCenter() {
+        return this.screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+    }
+
     // Convert screen coordinates to canvas space coordinates
     screenToCanvas(x, y) {
         return {
